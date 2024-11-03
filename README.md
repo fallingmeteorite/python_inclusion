@@ -1,5 +1,7 @@
 # python_inclusion
 
+Used to block the modification and installation of some packages
+
 Replace the original python.exe with original_python.exe
 
 Add Inclusion_rules_package.txt file with the libraries you want to filter in it, one by one
