@@ -68,7 +68,7 @@ def run(parameter_import, rules_open, delete_cache, requirements, parent_path,
                     logging.info(f'{requirements} detects the file path')
 
                     # Read each row of data and store it in the data array
-                    with open(f'{os.getcwd()}\\{requirements}', 'r') as file:
+                    with open(requirements, 'r') as file:
                         lines = file.readlines()
 
                         for h in range(len(lines)):
