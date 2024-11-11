@@ -35,70 +35,63 @@ def get_logger(level=log_use.INFO):
 
 def run(parameter_import, rules_open, delete_cache, requirements, parent_path,
         run_check=True, cache_del=False):
-
     # Enable rule detection
-    if rules_open is None:
+    if rules_open:
 
-        # Commands to uninstall packages are not intercepted
-        if not 'uninstall' in parameter_import:
+        # Open the txt file, read each row of data and store it in the data array
+        with open(f'{parent_path}\\Inclusion_rules_package.txt', 'r') as file:
+            lines = file.readlines()
 
-            # Open the txt file, read each row of data and store it in the data array
-            with open(f'{parent_path}\\Inclusion_rules_package.txt', 'r') as file:
-                lines = file.readlines()
+        for i in range(len(lines)):
+            package_check = str(lines[i])
+            package_check = package_check.replace(' ', '')
 
-            for i in range(len(lines)):
-                package_check = str(lines[i])
-                package_check = package_check.replace(' ', '')
+            # Check whether there are any blacklisted packages in the command
+            if package_check in str(parameter_import):
+                # Check whether it is an installation command
+                if 'install' in parameter_import:
+                    logging.warning(
+                        f'The current command is detected to be making changes to the |{package_check}| library, and the current command will be intercepted!')
+                    logging.warning(
+                        f'If you confirm that the change is necessary, add the parameter |-rules_open| and set it to |off|')
+                    # Prohibit the execution of installation commands
+                    run_check = False
 
-                # Check whether there are any blacklisted packages in the command
-                if package_check in str(parameter_import):
-                    # Check whether it is an installation command
-                    if not 'show' in parameter_import:
-                        logging.warning(
-                            f'The current command is detected to be making changes to the |{package_check}| library, and the current command will be intercepted!')
-                        logging.warning(
-                            f'If you confirm that the change is necessary, add the parameter |-rules_open| and set it to |off|')
-                        # Prohibit the execution of installation commands
-                        run_check = False
-
-                # Detect whether there are any blacklisted packages in the requirements.txt
-                if not requirements is None:
-                    logging.info(
-                        f'The current command is detected to be installing dependent files in batches, and requirements.txt files are being detected')
-                    logging.info(f'{requirements} detects the file path')
-
-                    # Read each row of data and store it in the data array
-                    with open(requirements, 'r') as file:
-                        lines = file.readlines()
-
-                        for h in range(len(lines)):
-                            if package_check in lines[h]:
-                                lines[h] = ''
-                                logging.warning(
-                                    f'The current command is detected to be making changes to the |{package_check}| library, and the current command will be intercepted!')
-                                logging.warning(
-                                    f'If you confirm that the change is necessary, add the parameter |-rules_open| and set it to |off|')
-
-                    with open('cache_use_install.txt', 'w') as file:
-                        file.writelines(lines)
-
-                    parameter_import += f' -r ./cache_use_install.txt'
-
-                    # Deletion of cache_use_install.txt is allowed
-                    cache_del = True
-
-            # Delete the garbage that was caused by file occupation when the package was unmounted
-            if not delete_cache is None:
-                files_all = os.listdir(parent_path + '\\Lib\site-packages')
-                for file in files_all:
-                    if file.startswith('~'):
-                        shutil.rmtree(parent_path + '\\Lib\site-packages\\' + delete_path)
-                        logging.info(f'{delete_path}The folder has been deleted')
-
-        # Commands to uninstall packages are not intercepted
-        if 'uninstall' in parameter_import:
+            # Detect whether there are any blacklisted packages in the requirements.txt
             if not requirements is None:
-                parameter_import += f' -r {requirements}'
+                logging.info(
+                    f'The current command is detected to be installing dependent files in batches, and requirements.txt files are being detected')
+                logging.info(f'{requirements} detects the file path')
+
+                # Read each row of data and store it in the data array
+                with open(requirements, 'r') as file:
+                    lines = file.readlines()
+
+                    for h in range(len(lines)):
+                        if package_check in lines[h]:
+                            lines[h] = ''
+                            logging.warning(
+                                f'The current command is detected to be making changes to the |{package_check}| library, and the current command will be intercepted!')
+                            logging.warning(
+                                f'If you confirm that the change is necessary, add the parameter |-rules_open| and set it to |off|')
+
+                with open('cache_use_install.txt', 'w') as file:
+                    file.writelines(lines)
+
+                parameter_import += f' -r ./cache_use_install.txt'
+
+                # Deletion of cache_use_install.txt is allowed
+                cache_del = True
+
+
+    # Delete the garbage that was caused by file occupation when the package was unmounted
+    if not delete_cache is None:
+        files_all = os.listdir(parent_path + '\\Lib\site-packages')
+        for file in files_all:
+            if file.startswith('~'):
+                shutil.rmtree(parent_path + '\\Lib\site-packages\\' + delete_path)
+                logging.info(f'{delete_path}The folder has been deleted')
+
 
     python_path = f'{parent_path}\\original_python.exe'
 
@@ -112,11 +105,12 @@ def run(parameter_import, rules_open, delete_cache, requirements, parent_path,
     if cache_del:
         os.remove('./cache_use_install.txt')
 
+
 parser = argparse.ArgumentParser(add_help=False)
 
-parser.add_argument('-rules_open', type=bool, help='Whether or not to apply the rule')
+parser.add_argument('-rules_open', type=bool, default=True, help='Whether or not to apply the rule')
 
-parser.add_argument('-delete_cache', type=bool,
+parser.add_argument('-delete_cache', type=bool, default=False,
                     help='Delete the garbage that was caused by file occupation when the package was unmounted')
 
 parser.add_argument('-r', '--requirement', type=str,
@@ -124,7 +118,6 @@ parser.add_argument('-r', '--requirement', type=str,
 
 parser.add_argument('-debugging_information', type=bool, default=False,
                     help='Whether to output debug information')
-
 
 known_args, unknown_args = parser.parse_known_args()
 
