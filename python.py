@@ -153,5 +153,10 @@ execution_path = os.path.abspath(os.path.dirname(current_path))
 # Remove useless variables to reduce memory usage
 del all_known_args, args_without_known, known_args, unknown_args, args, current_path
 
-run(parameter_import=other_parameters, rules_open=enable_rule, delete_cache=delete_uninstall_cache,
+try:
+    run(parameter_import=other_parameters, rules_open=enable_rule, delete_cache=delete_uninstall_cache,
         requirements=requirements_file, parent_path=execution_path)
+except Exception as error:
+    logging.critical(error)
+    logging.warning(f'Make sure that the |Inclusion_rules_package.txt| is in the |{execution_path}|')
+
