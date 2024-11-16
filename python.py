@@ -1,6 +1,8 @@
 import argparse
 import os
 import sys
+import shutil
+import chardet
 import logging as log_use
 import colorlog
 
@@ -39,7 +41,7 @@ def run(parameter_import, rules_open, delete_cache, requirements, parent_path,
     if rules_open:
 
         # Open the txt file, read each row of data and store it in the data array
-        with open(f'{parent_path}\\Inclusion_rules_package.txt', 'r') as file:
+        with open(f'{parent_path}\\Inclusion_rules_package.txt', 'r', encoding='utf-8') as file:
             lines = file.readlines()
 
         for i in range(len(lines)):
@@ -53,18 +55,25 @@ def run(parameter_import, rules_open, delete_cache, requirements, parent_path,
                     logging.warning(
                         f'The current command is detected to be making changes to the |{package_check}| library, and the current command will be intercepted!')
                     logging.warning(
-                        f'If you confirm that the change is necessary, add the parameter |-rules_open| and set it to |off|')
+                        'If you confirm that the change is necessary, add the parameter |-rules_open| and set it to |off|')
+
                     # Prohibit the execution of installation commands
                     run_check = False
 
             # Detect whether there are any blacklisted packages in the requirements.txt
             if not requirements is None:
                 logging.info(
-                    f'The current command is detected to be installing dependent files in batches, and requirements.txt files are being detected')
+                    'The current command is detected to be installing dependent files in batches, and requirements.txt files are being detected')
                 logging.info(f'{requirements} detects the file path')
 
                 # Read each row of data and store it in the data array
-                with open(requirements, 'r') as file:
+                # Detect file encoding
+                with open(requirements, 'rb') as f:
+                    raw_data = f.read()
+                    result = chardet.detect(raw_data)
+                    encoding = result['encoding']
+
+                with open(requirements, 'r', encoding=encoding) as file:
                     lines = file.readlines()
 
                     for h in range(len(lines)):
@@ -73,9 +82,9 @@ def run(parameter_import, rules_open, delete_cache, requirements, parent_path,
                             logging.warning(
                                 f'The current command is detected to be making changes to the |{package_check}| library, and the current command will be intercepted!')
                             logging.warning(
-                                f'If you confirm that the change is necessary, add the parameter |-rules_open| and set it to |off|')
+                                'If you confirm that the change is necessary, add the parameter |-rules_open| and set it to |off|')
 
-                with open('cache_use_install.txt', 'w') as file:
+                with open('cache_use_install.txt', 'w', encoding=encoding) as file:
                     file.writelines(lines)
 
                 parameter_import += f' -r ./cache_use_install.txt'
@@ -83,15 +92,13 @@ def run(parameter_import, rules_open, delete_cache, requirements, parent_path,
                 # Deletion of cache_use_install.txt is allowed
                 cache_del = True
 
-
     # Delete the garbage that was caused by file occupation when the package was unmounted
-    if not delete_cache is None:
+    if delete_cache:
         files_all = os.listdir(parent_path + '\\Lib\site-packages')
         for file in files_all:
             if file.startswith('~'):
                 shutil.rmtree(parent_path + '\\Lib\site-packages\\' + delete_path)
                 logging.info(f'{delete_path}The folder has been deleted')
-
 
     python_path = f'{parent_path}\\original_python.exe'
 
@@ -143,14 +150,8 @@ current_path = sys.argv[0]
 # Get the parent directory of the path
 execution_path = os.path.abspath(os.path.dirname(current_path))
 
-logging.info(
-    f'Make sure that the |Inclusion_rules_package.txt| is in the |{execution_path}|')
-
 # Remove useless variables to reduce memory usage
 del all_known_args, args_without_known, known_args, unknown_args, args, current_path
 
-try:
-    run(parameter_import=other_parameters, rules_open=enable_rule, delete_cache=delete_uninstall_cache,
+run(parameter_import=other_parameters, rules_open=enable_rule, delete_cache=delete_uninstall_cache,
         requirements=requirements_file, parent_path=execution_path)
-except Exception as error:
-    logging.critical(error)
