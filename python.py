@@ -1,9 +1,10 @@
 import argparse
-import os
-import sys
-import shutil
-import chardet
 import logging as log_use
+import os
+import shutil
+import sys
+
+import chardet
 import colorlog
 
 
@@ -35,8 +36,25 @@ def get_logger(level=log_use.INFO):
     return logger
 
 
-def run(parameter_import, rules_open, delete_cache, requirements, parent_path,
-        run_check=True, cache_del=False):
+def remove_element_and_next(target):
+    global args
+    global requirements_list
+    # Locate the index of all target elements
+    indices = [i for i, x in enumerate(args) if x == target]
+
+    # Remove elements and their next bits from back to front to avoid the impact of index changes
+    for i in reversed(indices):
+        if i + 1 < len(args):  # 确保有后一位
+            requirements_list.append(args[i + 1])
+            args.pop(i + 1)
+        else:
+            requirements_list.append(None)
+        args.pop(i)
+
+
+def run(parameter_import, rules_open, delete_cache, parent_path, run_check=True):
+    global requirements_list
+
     # Enable rule detection
     if rules_open:
 
@@ -60,37 +78,44 @@ def run(parameter_import, rules_open, delete_cache, requirements, parent_path,
                     # Prohibit the execution of installation commands
                     run_check = False
 
-            # Detect whether there are any blacklisted packages in the requirements.txt
-            if not requirements is None:
-                logging.info(
-                    'The current command is detected to be installing dependent files in batches, and requirements.txt files are being detected')
-                logging.info(f'{requirements} detects the file path')
+        # Detect whether there are any blacklisted packages in the requirements.txt
+        if len(requirements_list) > 1:
+            for h in range(len(requirements_list)):
+                requirements = requirements_list[h]
 
-                # Read each row of data and store it in the data array
-                # Detect file encoding
-                with open(requirements, 'rb') as f:
-                    raw_data = f.read()
-                    result = chardet.detect(raw_data)
-                    encoding = result['encoding']
+                if len(lines) == 0:
+                    parameter_import += f' -r {requirements}'
 
-                with open(requirements, 'r', encoding=encoding) as file:
-                    lines = file.readlines()
+                for k in range(len(lines)):
+                    package_check = str(lines[k])
+                    package_check = package_check.replace(' ', '')
 
-                    for h in range(len(lines)):
-                        if package_check in lines[h]:
-                            lines[h] = ''
-                            logging.warning(
-                                f'The current command is detected to be making changes to the |{package_check}| library, and the current command will be intercepted!')
-                            logging.warning(
-                                'If you confirm that the change is necessary, add the parameter |-rules_open| and set it to |off|')
+                    logging.info(
+                        'The current command is detected to be installing dependent files in batches, and requirements.txt files are being detected')
+                    logging.info(f'{requirements} detects the file path')
 
-                with open('cache_use_install.txt', 'w', encoding=encoding) as file:
-                    file.writelines(lines)
+                    # Read each row of data and store it in the data array
+                    # Detect file encoding
+                    with open(requirements, 'rb') as f:
+                        raw_data = f.read()
+                        result = chardet.detect(raw_data)
+                        encoding = result['encoding']
 
-                parameter_import += f' -r ./cache_use_install.txt'
+                    with open(requirements, 'r', encoding=encoding) as file:
+                        lines = file.readlines()
 
-                # Deletion of cache_use_install.txt is allowed
-                cache_del = True
+                        for l in range(len(lines)):
+                            if package_check == lines[l]:
+                                lines[l] = ''
+                                logging.warning(
+                                    f'The current command is detected to be making changes to the |{package_check}| library, and the current command will be intercepted!')
+                                logging.warning(
+                                    'If you confirm that the change is necessary, add the parameter |-rules_open| and set it to |off|')
+                if not len(lines) == 0:
+                    with open(requirements, 'w', encoding=encoding) as file:
+                        file.writelines(lines)
+
+                    parameter_import += f' -r {requirements}'
 
     # Delete the garbage that was caused by file occupation when the package was unmounted
     if delete_cache:
@@ -103,14 +128,11 @@ def run(parameter_import, rules_open, delete_cache, requirements, parent_path,
     python_path = f'{parent_path}\\original_python.exe'
 
     # Deletes discarded variables to reduce memory usage
-    del rules_open, delete_cache, requirements, parent_path
+    # del rules_open, delete_cache, requirements, parent_path
 
     if run_check:
-        logging.debug(f'\"{python_path}\" {parameter_import}')
-        os.system(f'\"{python_path}\" {parameter_import}')
-
-    if cache_del:
-        os.remove('./cache_use_install.txt')
+        logging.debug(f'{python_path} {parameter_import}')
+        os.system(f"Powershell.exe {python_path} {parameter_import}")
 
 
 parser = argparse.ArgumentParser(add_help=False)
@@ -120,9 +142,6 @@ parser.add_argument('-rules_open', type=bool, default=True, help='Whether or not
 parser.add_argument('-delete_cache', type=bool, default=False,
                     help='Delete the garbage that was caused by file occupation when the package was unmounted')
 
-parser.add_argument('-r', '--requirement', type=str,
-                    help='Install from the given requirements file. This option can be used multiple times.')
-
 parser.add_argument('-debugging_information', type=bool, default=False,
                     help='Whether to output debug information')
 
@@ -131,11 +150,16 @@ known_args, unknown_args = parser.parse_known_args()
 all_known_args = known_args.__dict__  # Convert known parameters into dictionary form
 
 args = sys.argv[1:]
+
+#  Get the index of the element
+requirements_list = []
+remove_element_and_next("-r")
+remove_element_and_next("--requirement")
+
 args_without_known = [arg for arg in unknown_args]
 
 enable_rule = all_known_args['rules_open']
 delete_uninstall_cache = all_known_args['delete_cache']
-requirements_file = all_known_args['requirement']
 
 # Whether to output debug information (executed commands)
 if all_known_args['debugging_information']:
@@ -155,8 +179,7 @@ del all_known_args, args_without_known, known_args, unknown_args, args, current_
 
 try:
     run(parameter_import=other_parameters, rules_open=enable_rule, delete_cache=delete_uninstall_cache,
-        requirements=requirements_file, parent_path=execution_path)
+        parent_path=execution_path)
 except Exception as error:
     logging.critical(error)
     logging.warning(f'Make sure that the |Inclusion_rules_package.txt| is in the |{execution_path}|')
-
