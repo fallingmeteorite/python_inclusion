@@ -182,4 +182,3 @@ try:
         parent_path=execution_path)
 except Exception as error:
     logging.critical(error)
-    logging.warning(f'Make sure that the |Inclusion_rules_package.txt| is in the |{execution_path}|')
